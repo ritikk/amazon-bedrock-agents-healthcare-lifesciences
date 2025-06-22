@@ -1,0 +1,489 @@
+Transform: AWS::LanguageExtensions
+Parameters:
+  BedrockModelId:
+    Type: String
+    Description: The ID of the Foundation Model to use for the Agent
+    Default: us.amazon.nova-pro-v1:0
+  RedshiftDatabaseName:
+    Type: String
+    Default: dev
+  RedshiftUserName:
+    Type: String
+    Default: admin
+  RedshiftPassword:
+    Type: String
+    NoEcho: true
+    Description: STORE SECURELY - The password for the Redshift master user. Must
+      be at least 8 characters long and contain at least one uppercase letter, one
+      lowercase letter, and one number.
+    MinLength: 8
+    MaxLength: 64
+    AllowedPattern: ^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d!@#$%^&*()_+\-=\[\]{};:'",.<>?]{8,64}$
+    ConstraintDescription: Password must be between 8 and 64 characters, and contain
+      at least one uppercase letter, one lowercase letter, and one number.
+  GithubLink:
+    Type: String
+    Description: The link to the agent build cloudformation stack
+    Default: https://github.com/ritikk/amazon-bedrock-agents-healthcare-lifesciences.git
+  GitBranch:
+    Type: String
+    Description: The github branch to clone
+    Default: main
+  ReactAppAllowedCidr:
+    Type: String
+    Description: Allowed CIDR block (X.X.X.X/X) for React App UI access
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: Must be a valid CIDR block in format x.x.x.x/x
+  TavilyApiKey:
+    Type: String
+    NoEcho: true
+    Description: Provide TavilyApiKey API Key to utilize /web_search path
+    Default: ''
+  USPTOApiKey:
+    Type: String
+    NoEcho: true
+    Description: Provide USPTO API Key to utilize /search path
+    Default: ''
+  DeployApplication:
+    Type: String
+    Description: Select true to deploy the react application and agents. Select false
+      to only build the agents.
+    Default: 'true'
+    AllowedValues:
+    - 'true'
+    - 'false'
+  ExistingVpcId:
+    Type: String
+    Description: The VPC ID of an existing VPC in your AWS account and current region
+    Default: ''
+  ExistingPublicSubnets:
+    Type: CommaDelimitedList
+    Description: A list of 2 public subnet IDs in your AWS account and AWS region
+      from two different AZs are required.
+    Default: ''
+  ExistingPrivateSubnets:
+    Type: CommaDelimitedList
+    Description: A list of 2 private subnet IDs in your AWS account and AWS region
+      from two different AZs are required.
+    Default: ''
+Conditions:
+  HasVpcId:
+    Fn::Not:
+    - Fn::Equals:
+      - Ref: ExistingVpcId
+      - ''
+  HasTwoPublicSubnets:
+    Fn::Equals:
+    - Fn::Length:
+        Ref: ExistingPublicSubnets
+    - 2
+  HasTwoPrivateSubnets:
+    Fn::Equals:
+    - Fn::Length:
+        Ref: ExistingPrivateSubnets
+    - 2
+  CreateNetworking:
+    Fn::Not:
+    - Fn::And:
+      - Condition: HasVpcId
+      - Condition: HasTwoPublicSubnets
+      - Condition: HasTwoPrivateSubnets
+  CreateWebSearchAgent:
+    Fn::Not:
+    - Fn::Equals:
+      - Ref: TavilyApiKey
+      - ''
+  CreateUSPTOSearchAgent:
+    Fn::Not:
+    - Fn::Equals:
+      - Ref: USPTOApiKey
+      - ''
+  CreateCompetitiveIntelAgent:
+    Fn::Not:
+    - Fn::Or:
+      - Fn::Equals:
+        - Ref: TavilyApiKey
+        - ''
+      - Fn::Equals:
+        - Ref: USPTOApiKey
+        - ''
+  CreateReactApp:
+    Fn::Equals:
+    - Ref: DeployApplication
+    - 'true'
+Resources:
+  Network:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateNetworking
+    Properties:
+      TemplateURL: https://s3.us-east-1.amazonaws.com/ritikkh-hcls-demo-agents-infra/174761e6ec37f9ace19343a5392f20d6.template
+      TimeoutInMinutes: 10
+      Tags:
+      - Key: Project
+        Value: hcls-agents-toolkit
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Fn::Sub: ${AWS::StackName}-${AWS::AccountId}-${AWS::Region}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: AES256
+      Tags:
+      - Key: Project
+        Value: hcls-agents-toolkit
+  CodeRepo:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.us-east-1.amazonaws.com/ritikkh-hcls-demo-agents-infra/a7ffd71a1d34ef907116046aec1265c2.template
+      Parameters:
+        GitHubUrl:
+          Ref: GithubLink
+        BranchName:
+          Ref: GitBranch
+        S3Bucket:
+          Ref: S3Bucket
+        S3KeyPrefix: repo
+      TimeoutInMinutes: 5
+      Tags:
+      - Key: Project
+        Value: hcls-agents-toolkit
+  CodeBuild:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.us-east-1.amazonaws.com/ritikkh-hcls-demo-agents-infra/fe306cb347982104148bc6df54895d7a.template
+      Parameters:
+        GithubLink:
+          Ref: GithubLink
+        GitBranch:
+          Ref: GitBranch
+        S3Bucket:
+          Ref: S3Bucket
+      TimeoutInMinutes: 10
+      Tags:
+      - Key: Project
+        Value: hcls-agents-toolkit
+  ReactAppEcsBuildNestedStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateReactApp
+    Properties:
+      TemplateURL: https://s3.us-east-1.amazonaws.com/ritikkh-hcls-demo-agents-infra/208e214483f6b1894474b245cfcb13ae.template
+      Parameters:
+        AllowedCidr:
+          Ref: ReactAppAllowedCidr
+        VPCId:
+          Fn::If:
+          - CreateNetworking
+          - Fn::GetAtt:
+            - Network
+            - Outputs.VPC
+          - Ref: ExistingVpcId
+        PublicSubnet1:
+          Fn::If:
+          - CreateNetworking
+          - Fn::GetAtt:
+            - Network
+            - Outputs.PublicSubnet1
+          - Fn::Select:
+            - 0
+            - Ref: ExistingPublicSubnets
+        PublicSubnet2:
+          Fn::If:
+          - CreateNetworking
+          - Fn::GetAtt:
+            - Network
+            - Outputs.PublicSubnet2
+          - Fn::Select:
+            - 1
+            - Ref: ExistingPublicSubnets
+        S3Bucket:
+          Ref: S3Bucket
+        S3CodeKey:
+          Fn::GetAtt:
+          - CodeRepo
+          - Outputs.S3Key
+      TimeoutInMinutes: 35
+      Tags:
+      - Key: Project
+        Value: hcls-agents-toolkit
+  AgentRole:
+    Type: AWS::IAM::Role
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - bedrock.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+      - PolicyName: BedrockInvokeModel
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action:
+            - bedrock:*
+            Resource:
+            - Fn::Sub: arn:${AWS::Partition}:bedrock:*::foundation-model/*
+            - Fn::Sub: arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:knowledge-base/*
+            - Fn::Sub: arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:agent-alias/*
+            - Fn::Sub: arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:agent/*
+            - Fn::Sub: arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*
+            - Fn::Sub: arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:application-inference-profile/*
+            - Fn::Sub: arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/*
+      Tags:
+      - Key: Project
+        Value: hcls-agents-toolkit
+  BiomarkerDiscoverySupervisorAgent:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+    - CodeBuild
+    Properties:
+      TemplateURL: https://s3.us-east-1.amazonaws.com/ritikkh-hcls-demo-agents-infra/61166cf867bb5bb7a82cbe149a12dd51.template
+      Parameters:
+        BedrockModelId:
+          Ref: BedrockModelId
+        RedshiftDatabaseName:
+          Ref: RedshiftDatabaseName
+        RedshiftUserName:
+          Ref: RedshiftUserName
+        RedshiftPassword:
+          Ref: RedshiftPassword
+        MultiAgentDevMode: 'false'
+        EnvironmentName: env1
+        GitRepoURL:
+          Ref: GithubLink
+        GitBranch:
+          Ref: GitBranch
+        SubAgentS3Bucket:
+          Ref: S3Bucket
+        VPC:
+          Fn::If:
+          - CreateNetworking
+          - Fn::GetAtt:
+            - Network
+            - Outputs.VPC
+          - Ref: ExistingVpcId
+        PrivateSubnet1:
+          Fn::If:
+          - CreateNetworking
+          - Fn::GetAtt:
+            - Network
+            - Outputs.PrivateSubnet1
+          - Fn::Select:
+            - 0
+            - Ref: ExistingPrivateSubnets
+        PrivateSubnet2:
+          Fn::If:
+          - CreateNetworking
+          - Fn::GetAtt:
+            - Network
+            - Outputs.PrivateSubnet2
+          - Fn::Select:
+            - 1
+            - Ref: ExistingPrivateSubnets
+        AgentRole:
+          Fn::GetAtt:
+          - AgentRole
+          - Arn
+      TimeoutInMinutes: 30
+      Tags:
+      - Key: Project
+        Value: hcls-agents-toolkit
+  ClinicalStudySearchAgent:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.us-east-1.amazonaws.com/ritikkh-hcls-demo-agents-infra/601d80feba422079762960809c13a3a0.template
+      Parameters:
+        AgentIAMRoleArn:
+          Fn::GetAtt:
+          - AgentRole
+          - Arn
+        ChartImageBucketName:
+          Ref: S3Bucket
+      TimeoutInMinutes: 10
+      Tags:
+      - Key: Project
+        Value: hcls-agents-toolkit
+  ClinicalTrialProtocolGeneratorAgent:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.us-east-1.amazonaws.com/ritikkh-hcls-demo-agents-infra/5a8bb07b37a195dce8bd4de42e36ff04.template
+      Parameters:
+        AgentIAMRoleArn:
+          Fn::GetAtt:
+          - AgentRole
+          - Arn
+      TimeoutInMinutes: 10
+      Tags:
+      - Key: Project
+        Value: hcls-agents-toolkit
+  ClinicalTrialProtocolSupervisorAgent:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.us-east-1.amazonaws.com/ritikkh-hcls-demo-agents-infra/17c5f24131461a42dca22d0777b37771.template
+      Parameters:
+        BedrockModelId:
+          Ref: BedrockModelId
+        AgentIAMRoleArn:
+          Fn::GetAtt:
+          - AgentRole
+          - Arn
+        ClinicalStudySearchAgentAliasArn:
+          Fn::GetAtt:
+          - ClinicalStudySearchAgent
+          - Outputs.AgentAliasArn
+        ClinicalTrialProtocolGeneratorAgentAliasArn:
+          Fn::GetAtt:
+          - ClinicalTrialProtocolGeneratorAgent
+          - Outputs.AgentAliasArn
+      TimeoutInMinutes: 10
+      Tags:
+      - Key: Project
+        Value: hcls-agents-toolkit
+  WebSearchAgent:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateWebSearchAgent
+    Properties:
+      TemplateURL: https://s3.us-east-1.amazonaws.com/ritikkh-hcls-demo-agents-infra/1f6373e0da8ded71f40613d735b1a910.template
+      Parameters:
+        AgentIAMRoleArn:
+          Fn::GetAtt:
+          - AgentRole
+          - Arn
+        TavilyApiKey:
+          Ref: TavilyApiKey
+      TimeoutInMinutes: 35
+      Tags:
+      - Key: Project
+        Value: hcls-agents-toolkit
+  SEC10kAgent:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.us-east-1.amazonaws.com/ritikkh-hcls-demo-agents-infra/edc294321705c65fbd0eb15b0819c393.template
+      Parameters:
+        AgentIAMRoleArn:
+          Fn::GetAtt:
+          - AgentRole
+          - Arn
+        S3CodeBucket:
+          Ref: S3Bucket
+        S3CodeKey:
+          Fn::GetAtt:
+          - CodeRepo
+          - Outputs.S3Key
+      TimeoutInMinutes: 35
+      Tags:
+      - Key: Project
+        Value: hcls-agents-toolkit
+  USPTOSearchAgent:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateUSPTOSearchAgent
+    Properties:
+      TemplateURL: https://s3.us-east-1.amazonaws.com/ritikkh-hcls-demo-agents-infra/72826d8620c211eacf5ae4c6effa3689.template
+      Parameters:
+        AgentIAMRoleArn:
+          Fn::GetAtt:
+          - AgentRole
+          - Arn
+        USPTOApiKey:
+          Ref: USPTOApiKey
+      TimeoutInMinutes: 35
+      Tags:
+      - Key: Project
+        Value: hcls-agents-toolkit
+  CompetitiveIntelligenceSupervisorAgent:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateCompetitiveIntelAgent
+    Properties:
+      TemplateURL: https://s3.us-east-1.amazonaws.com/ritikkh-hcls-demo-agents-infra/d1bdcd2e481144d15fce38be457fc919.template
+      Parameters:
+        BedrockModelId:
+          Ref: BedrockModelId
+        AgentIAMRoleArn:
+          Fn::GetAtt:
+          - AgentRole
+          - Arn
+        WebSearchAgentAliasArn:
+          Fn::GetAtt:
+          - WebSearchAgent
+          - Outputs.AgentAliasArn
+        SEC10kAgentAliasArn:
+          Fn::GetAtt:
+          - SEC10kAgent
+          - Outputs.AgentAliasArn
+        USPTOSearchAgentAliasArn:
+          Fn::GetAtt:
+          - USPTOSearchAgent
+          - Outputs.AgentAliasArn
+      TimeoutInMinutes: 10
+      Tags:
+      - Key: Project
+        Value: hcls-agents-toolkit
+  WileyOnlineSearchAgent:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.us-east-1.amazonaws.com/ritikkh-hcls-demo-agents-infra/c8fa7f82840bb71ec8deca4f25965f84.template
+      Parameters:
+        AgentIAMRoleArn:
+          Fn::GetAtt:
+          - AgentRole
+          - Arn
+      TimeoutInMinutes: 10
+      Tags:
+      - Key: Project
+        Value: hcls-agents-toolkit
+  UniProtProteinSearchAgent:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.us-east-1.amazonaws.com/ritikkh-hcls-demo-agents-infra/6f8d5d1a3e096d78a4279beefc00b892.template
+      Parameters:
+        BedrockModelId:
+          Ref: BedrockModelId
+        AgentIAMRoleArn:
+          Fn::GetAtt:
+          - AgentRole
+          - Arn
+      TimeoutInMinutes: 10
+      Tags:
+      - Key: Project
+        Value: hcls-agents-toolkit
+  InvivoStudySchedulerAgent:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.us-east-1.amazonaws.com/ritikkh-hcls-demo-agents-infra/affe03b76c3f0c5a291694cc64324104.template
+      Parameters:
+        AgentIAMRoleArn:
+          Fn::GetAtt:
+          - AgentRole
+          - Arn
+        S3CodeBucket:
+          Ref: S3Bucket
+        S3CodeKey:
+          Fn::GetAtt:
+          - CodeRepo
+          - Outputs.S3Key
+      TimeoutInMinutes: 35
+      Tags:
+      - Key: Project
+        Value: hcls-agents-toolkit
+Outputs:
+  ReactAppExternalURL:
+    Condition: CreateReactApp
+    Value:
+      Fn::GetAtt:
+      - ReactAppEcsBuildNestedStack
+      - Outputs.ExternalUrl
+    Description: ALB DNS for the React App
+  AgentRole:
+    Value:
+      Fn::GetAtt:
+      - AgentRole
+      - Arn
+    Description: Amazon Bedrock Agents Service Role ARN

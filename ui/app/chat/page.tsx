@@ -53,17 +53,51 @@ export default function ChatPage() {
       }
     ]);
 
-    
-    const response = await fetch('/api/chat/stream', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        message: input, 
-        agents: selectedAgents, 
-        agent_instruction: instruction,
-        requestId : chat_request_id
-      })
-    });
+    try {
+      const response = await fetch('/api/chat/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message: input, 
+          agents: selectedAgents, 
+          agent_instruction: instruction,
+          requestId : chat_request_id
+        })
+      });
+
+      // Handle non-streaming error responses
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+          
+          // Add error message to chat
+          setMessages((prev) => {
+            const updated = [...prev];
+            const lastMsg = updated[updated.length - 1];
+            if (lastMsg && lastMsg.sender === 'AI Agent') {
+              lastMsg.text = `Error: ${errorMessage}`;
+              lastMsg.trace = [{
+                type: 'error',
+                step: 1,
+                agent: 'System',
+                message: errorMessage,
+                details: errorData.details || '',
+                requestId: errorData.requestId || chat_request_id,
+                text: `Error: ${errorMessage}${errorData.details ? '\n\nDetails:\n' + errorData.details : ''}`
+              }];
+              lastMsg.expandTrace = true;
+              lastMsg.timestamp = new Date().toISOString();
+            }
+            return updated;
+          });
+          setIsProcessing(false);
+          return;
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError);
+        }
+      }
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
@@ -150,6 +184,31 @@ export default function ChatPage() {
         boundary = buffer.indexOf('\n\n');
 
       }  
+    }
+    } catch (fetchError) {
+      console.error('Error during fetch or streaming:', fetchError);
+      
+      // Add error message to chat
+      setMessages((prev) => {
+        const updated = [...prev];
+        const lastMsg = updated[updated.length - 1];
+        if (lastMsg && lastMsg.sender === 'AI Agent') {
+          lastMsg.text = `Network or streaming error: ${fetchError.message || fetchError}`;
+          lastMsg.trace = [{
+            type: 'error',
+            step: 1,
+            agent: 'System',
+            message: fetchError.message || 'Network error',
+            details: fetchError.stack || '',
+            requestId: chat_request_id,
+            text: `Network Error: ${fetchError.message || fetchError}${fetchError.stack ? '\n\nDetails:\n' + fetchError.stack : ''}`
+          }];
+          lastMsg.expandTrace = true;
+          lastMsg.timestamp = new Date().toISOString();
+        }
+        return updated;
+      });
+      setIsProcessing(false);
     }
   };
 
@@ -337,14 +396,34 @@ export default function ChatPage() {
                         {step.type === 'placeholder' && (
                           <div className="italic text-gray-400">⏳ {step.text}</div>
                         )}
-                        {step.type === 'error' && (() => {
-                          console.error('Agent execution error:', step.message || step.text);
-                          return (
-                            <div className="block font-medium">
-                              Something went wrong during agent execution.
+                        {step.type === 'error' && (
+                          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                            <div className="flex items-start gap-2">
+                              <span className="text-red-500 text-lg">❌</span>
+                              <div className="flex-1">
+                                <div className="font-semibold text-red-800 mb-2">Agent Execution Error</div>
+                                <div className="text-red-700 text-sm whitespace-pre-wrap break-words">
+                                  {step.message || step.text || 'An unknown error occurred'}
+                                </div>
+                                {step.details && (
+                                  <details className="mt-2">
+                                    <summary className="cursor-pointer text-red-600 text-xs font-medium">
+                                      Show Technical Details
+                                    </summary>
+                                    <pre className="mt-1 text-xs text-red-600 bg-red-100 p-2 rounded overflow-x-auto">
+                                      {step.details}
+                                    </pre>
+                                  </details>
+                                )}
+                                {step.requestId && (
+                                  <div className="mt-2 text-xs text-red-500">
+                                    Request ID: {step.requestId}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          );
-                        })()}
+                          </div>
+                        )}
                       </div>
                     </details>
                   ))}

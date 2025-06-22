@@ -4,7 +4,7 @@ Parameters:
   BedrockModelId:
     Type: String
     Description: The ID of the Foundation Model to use for the Agent
-    Default: us.anthropic.claude-3-5-sonnet-20241022-v2:0
+    Default: us.amazon.nova-pro-v1:0
   RedshiftDatabaseName:
     Type: String
     Default: dev
@@ -22,7 +22,7 @@ Parameters:
   GithubLink:
     Type: String
     Description: "The link to the agent build cloudformation stack"
-    Default: "https://github.com/aws-samples/amazon-bedrock-agents-healthcare-lifesciences.git"
+    Default: "https://github.com/ritikk/amazon-bedrock-agents-healthcare-lifesciences.git"
   GitBranch:
     Type: String
     Description: The github branch to clone

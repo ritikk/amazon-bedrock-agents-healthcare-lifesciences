@@ -48,10 +48,11 @@ def lambda_handler(event, context):
             response_body = {"text/plain": {"body": "Failed to parse JSON response"}}
             response_code = 500
 
+    # Safely get values from event with defaults to prevent KeyError
     action_response = {
-        "actionGroup": event["actionGroup"],
-        "apiPath": event["apiPath"],
-        "httpMethod": event["httpMethod"],
+        "actionGroup": event.get("actionGroup", "WileySearch"),
+        "apiPath": event.get("apiPath", "/get-articles-from-wiley"),
+        "httpMethod": event.get("httpMethod", "GET"),
         "httpStatusCode": response_code,
         "responseBody": response_body,
     }

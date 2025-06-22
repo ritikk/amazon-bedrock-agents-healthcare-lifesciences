@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
   log('Received chat request', { message, agent_instruction, agentCount: agents.length });
 
   try {
-    const foundationModel = 'us.anthropic.claude-3-5-sonnet-20241022-v2:0';
+    const foundationModel = 'us.amazon.nova-pro-v1:0';
 
     log('Resolving agent aliases...');
     const collaboratorConfigurations = await Promise.all(
@@ -276,14 +276,31 @@ export async function POST(req: NextRequest) {
         } catch (streamError) {
           log('Error during streaming', streamError);
           
+          // Extract meaningful error information
+          let errorMessage = 'An error occurred during streaming.';
+          let errorDetails = '';
+          
+          if (streamError instanceof Error) {
+            errorMessage = streamError.message || errorMessage;
+            errorDetails = streamError.stack || '';
+          } else if (typeof streamError === 'string') {
+            errorMessage = streamError;
+          } else if (streamError && typeof streamError === 'object') {
+            errorMessage = streamError.message || streamError.toString() || errorMessage;
+            errorDetails = JSON.stringify(streamError, null, 2);
+          }
+          
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({
             type: 'error',
             step,
             agent: 'Model',
-            text: streamError + ' ' + requestId || 'An error occurred during streaming.',
+            message: errorMessage,
+            details: errorDetails,
+            requestId: requestId,
+            text: `Error: ${errorMessage}${errorDetails ? '\n\nDetails:\n' + errorDetails : ''}`,
           })}\n\n`));
 
-          finalMessage = "Sorry ! I am having trouble processing your request. Please try again later.";
+          finalMessage = `Error: ${errorMessage}. Request ID: ${requestId}`;
 
         }finally{
 
@@ -310,7 +327,33 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     log('Error during processing', err);
-    return new Response('Internal Server Error', { status: 500 });
+    
+    // Extract meaningful error information
+    let errorMessage = 'Internal Server Error';
+    let errorDetails = '';
+    
+    if (err instanceof Error) {
+      errorMessage = err.message || errorMessage;
+      errorDetails = err.stack || '';
+    } else if (typeof err === 'string') {
+      errorMessage = err;
+    } else if (err && typeof err === 'object') {
+      errorMessage = err.message || err.toString() || errorMessage;
+      errorDetails = JSON.stringify(err, null, 2);
+    }
+    
+    // Return a proper error response with details
+    return new Response(JSON.stringify({
+      error: errorMessage,
+      details: errorDetails,
+      requestId: sessionId,
+      timestamp: new Date().toISOString()
+    }), { 
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
   }
 }
 
