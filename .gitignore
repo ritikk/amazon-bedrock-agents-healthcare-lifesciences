@@ -7,3 +7,15 @@ node_modules
 .kiro
 .amazonq
 __pycache__
+
+# IDE files
+.idea/
+
+# CloudFormation packaged templates
+packaged_*.yaml
+packaged_*.yml
+packaged-*.yaml
+packaged-*.yml
+
+# Environment-specific files
+my-environment.md
