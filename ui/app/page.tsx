@@ -75,19 +75,21 @@ export default function Home() {
 
     return (
       <div>
-        <h2 className="text-xl font-semibold mb-2 mt-6 text-blue-800">{title}</h2>
-        <div className="grid grid-cols-2 gap-6">
+        <h2 className="text-xl font-semibold mb-4 mt-6 text-blue-800">{title}</h2>
+        <div className="grid grid-cols-4 gap-6">
           {filtered.map((agent) => (
             <div
-            key={agent.id}
-            className={`bg-white p-6 shadow-lg rounded-lg flex items-center cursor-pointer transition transform hover:scale-105 hover:shadow-2xl border-2 ${
-              isSupervisorType(agent) ? 'border-purple-500' : 'border-gray-300'
-            }`}
-            onClick={(e) => handleCardClick(e, agent)}
-          >
-              <input
+              key={agent.id}
+              className={`bg-white p-4 shadow-lg rounded-lg cursor-pointer transition transform hover:scale-105 hover:shadow-2xl border-2 aspect-square flex flex-col justify-between ${
+                isSupervisorType(agent) ? 'border-purple-500' : 'border-gray-300'
+              }`}
+              onClick={(e) => handleCardClick(e, agent)}
+            >
+              {/* Checkbox positioned at top-left */}
+              <div className="flex justify-between items-start mb-2">
+                <input
                   type="checkbox"
-                  className="mr-4"
+                  className="w-4 h-4"
                   checked={selectedAgents.some((a) => a.id === agent.id)}
                   disabled={isCheckboxDisabled(agent)}
                   onChange={(e) => {
@@ -95,17 +97,42 @@ export default function Home() {
                     toggleAgentSelection(agent);
                   }}
                 />
-              <img src={agent.image} alt="Agent Icon" className="w-20 h-20 mr-6 rounded-full border-2 border-blue-500 shadow-lg" />
-              <div>
-                <h3 className="font-bold text-lg text-gray-900">{agent.name}</h3>
-                <p className="text-sm text-gray-600">{agent.description}</p>
-                <div className="flex flex-wrap gap-2 mt-3">
+                {isSupervisorType(agent) && (
+                  <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full font-semibold">
+                    Supervisor
+                  </span>
+                )}
+              </div>
+
+              {/* Agent image centered */}
+              <div className="flex justify-center mb-3">
+                <img 
+                  src={agent.image} 
+                  alt="Agent Icon" 
+                  className="w-16 h-16 rounded-full border-2 border-blue-500 shadow-lg" 
+                />
+              </div>
+
+              {/* Agent info */}
+              <div className="text-center flex-grow flex flex-col justify-between">
+                <div>
+                  <h3 className="font-bold text-sm text-gray-900 mb-2 line-clamp-2">{agent.name}</h3>
+                  <p className="text-xs text-gray-600 mb-3 line-clamp-3">{agent.description}</p>
+                </div>
+                
+                {/* Tags at bottom */}
+                <div className="flex flex-wrap gap-1 justify-center">
                   {agent.tags?.length ? (
-                    agent.tags.map((tag) => (
-                      <span key={tag} className="bg-blue-200 text-blue-800 text-xs px-3 py-1 rounded-full shadow-md">{tag}</span>
+                    agent.tags.slice(0, 2).map((tag) => (
+                      <span key={tag} className="bg-blue-200 text-blue-800 text-xs px-2 py-1 rounded-full shadow-sm">
+                        {tag}
+                      </span>
                     ))
                   ) : (
-                    <span className="text-gray-500 text-xs">No tags available</span>
+                    <span className="text-gray-400 text-xs">No tags</span>
+                  )}
+                  {agent.tags?.length > 2 && (
+                    <span className="text-gray-500 text-xs">+{agent.tags.length - 2}</span>
                   )}
                 </div>
               </div>
