@@ -61,7 +61,7 @@ DEFAULT_ALIAS = "TSTALIASID"
 DEFAULT_CI_ACTION_GROUP_NAME = "CodeInterpreterAction"
 UNDECIDABLE_CLASSIFICATION = "undecidable"
 # ROUTER_MODEL = "us.anthropic.claude-3-haiku-20240307-v1:0"
-ROUTER_MODEL = "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+ROUTER_MODEL = "us.anthropic.claude-3-5-haiku-20241022-v1:0"
 TRACE_TRUNCATION_LENGTH = 300
 
 # TODO: Take advantage of a default execution role so that we do not need to have lengthy
