@@ -53,9 +53,22 @@ export async function invokeInlineAgentHelper(requestParams) {
 
 function extractAndRemoveImageUrls(text: string): [string[], string] {
   const imageUrlRegex = /(https:\/\/[^\s"']+\.(?:png|jpg|jpeg|webp)[^\s"']*)/gi;
-  const imageUrls = [...text.matchAll(imageUrlRegex)].map(match => match[1]);
+  const allImageUrls = [...text.matchAll(imageUrlRegex)].map(match => match[1]);
+  
+  // Filter to only allow S3 URLs and other trusted domains
+  const allowedDomains = [
+    's3.amazonaws.com',
+    's3.',  // Matches s3.region.amazonaws.com patterns
+    'amazonaws.com'
+  ];
+  
+  const filteredImageUrls = allImageUrls.filter(url => {
+    return allowedDomains.some(domain => url.includes(domain));
+  });
+  
+  // Remove ALL image URLs from text (both allowed and filtered)
   const cleanedText = text.replace(imageUrlRegex, '').trim();
-  return [imageUrls, cleanedText];
+  return [filteredImageUrls, cleanedText];
 }
 
 
@@ -204,20 +217,38 @@ export async function POST(req: NextRequest) {
               if (obsTool) {
                 log(`Tool observation from "${agentId}"`, obsTool);
   
-                const [extractedUrls, cleanedText] = extractAndRemoveImageUrls(obsTool);
-                if (extractedUrls.length > 0) {
-                  imageUrls.push(...extractedUrls); // ✅ flattening
-                  log('Image URLs captured from observation text', extractedUrls);
-                }
-
-                const obs_chunks = chunkTextSafely(cleanedText, 4000);
-                for (const obs_chunk of obs_chunks) {
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({
-                    type: 'observation',
-                    step,
-                    agent: agentId,
-                    text: obs_chunk
-                  })}\n\n`));
+                // Skip image extraction for web search agents to avoid external URLs
+                const isWebSearchAgent = agentId.toLowerCase().includes('tavily') || 
+                                       agentId.toLowerCase().includes('web-search') ||
+                                       agentId.toLowerCase().includes('websearch');
+                
+                if (!isWebSearchAgent) {
+                  const [extractedUrls, cleanedText] = extractAndRemoveImageUrls(obsTool);
+                  if (extractedUrls.length > 0) {
+                    imageUrls.push(...extractedUrls);
+                    log('Image URLs captured from observation text', extractedUrls);
+                  }
+                  
+                  const obs_chunks = chunkTextSafely(cleanedText, 4000);
+                  for (const obs_chunk of obs_chunks) {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                      type: 'observation',
+                      step,
+                      agent: agentId,
+                      text: obs_chunk
+                    })}\n\n`));
+                  }
+                } else {
+                  // For web search agents, don't extract images, just chunk the text
+                  const obs_chunks = chunkTextSafely(obsTool, 4000);
+                  for (const obs_chunk of obs_chunks) {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                      type: 'observation',
+                      step,
+                      agent: agentId,
+                      text: obs_chunk
+                    })}\n\n`));
+                  }
                 }
                 step++;
               }
