@@ -155,14 +155,14 @@ export default function Home() {
       <Head>
         <title>Healthcare & Life Sciences AI Agents</title>
       </Head>
-      <div className="container p-4">
+      <div className="container mx-auto max-w-7xl p-4">
         <div className="flex flex-col items-center mb-4">
           <Image src="/images/aws-logo.svg" alt="AWS Logo" width={150} height={50} className="mb-4" />
           <h1 className="text-2xl font-bold">Healthcare and Life Sciences Agent Catalog</h1>
         </div>
 
         {/* Filter Bar */}
-        <div className="flex gap-3 mb-4">
+        <div className="flex gap-3 mb-4 justify-center">
           {['all', 'collaborator', 'non-collaborator'].map((type) => (
             <span
               key={type}
@@ -176,13 +176,15 @@ export default function Home() {
           ))}
         </div>
 
-        <input
-          type="text"
-          className="w-full p-2 border rounded mb-4"
-          placeholder="Search for AI Healthcare Agents"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <div className="max-w-2xl mx-auto mb-4">
+          <input
+            type="text"
+            className="w-full p-2 border rounded"
+            placeholder="Search for AI Healthcare Agents"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
 
         {/* Agents Section */}
         {isLoading ? (
