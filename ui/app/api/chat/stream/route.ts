@@ -19,6 +19,352 @@ const REGION: string = process.env.AWS_REGION
 const runtimeClient = new BedrockAgentRuntimeClient({ region: REGION });
 const controlClient = new BedrockAgentClient({ region: REGION });
 
+const LAMBDA_FUNCTION_ARN = 'arn:aws:lambda:us-east-1:929445170179:function:pr-sentiment-tavily-search-processor';
+
+// Handler for PR Sentiment Intelligence InlineAgent
+async function handlePRSentimentInlineAgent(req: NextRequest, encoder: TextEncoder, sessionId: string, message: string, log: Function) {
+  log('Handling PR Sentiment Intelligence InlineAgent request');
+  
+  try {
+    // Extract drug name from message
+    const drugName = extractDrugNameFromMessage(message);
+    if (!drugName) {
+      return createErrorResponse(encoder, 'Please specify a drug name to analyze. For example: "Analyze sentiment for Lipitor"');
+    }
+
+    log('Extracted drug name:', drugName);
+
+    // Create InlineAgent configuration for PR Sentiment Intelligence
+    const requestParams = {
+      sessionId,
+      foundationModel: 'us.anthropic.claude-3-5-haiku-20241022-v1:0',
+      instruction: `You are a pharmaceutical sentiment analysis specialist that collects and analyzes patient reviews to provide comprehensive, human-readable sentiment intelligence reports.
+
+Your comprehensive task is to:
+1. Use the TavilySearchProcessor function to search for patient reviews of "${drugName}" on Drugs.com
+2. Collect and process the review data with high quality standards
+3. Perform multi-dimensional sentiment analysis across 5 key dimensions
+4. Present your findings in a clear, descriptive, conversational format
+
+**IMPORTANT: Your response should be a comprehensive, human-readable analysis report, NOT raw JSON data.**
+
+Structure your response as follows:
+
+## 📊 Sentiment Analysis Report for ${drugName}
+
+### Data Collection Summary
+[Describe how many reviews were found, data quality, and collection process]
+
+### 🎯 Multi-Dimensional Sentiment Analysis
+
+**Overall Patient Sentiment: [Classification]** (Confidence: [X]%)
+[Provide 2-3 sentences explaining the overall sentiment with specific examples from reviews]
+
+**Drug Efficacy Perception: [Classification]** (Confidence: [X]%)
+[Explain how patients perceive the drug's effectiveness with supporting evidence]
+
+**Side Effect Tolerance: [Classification]** (Confidence: [X]%)
+[Describe patient experiences with side effects and tolerance levels]
+
+**Patient Experience: [Classification]** (Confidence: [X]%)
+[Analyze the overall patient journey including access, cost, and usability factors]
+
+**Recommendation Likelihood: [Classification]** (Confidence: [X]%)
+[Explain whether patients would recommend this drug to others and why]
+
+### 💡 Key Insights
+[Provide 3-5 bullet points of the most important findings from the analysis]
+
+### 🚨 Risk Indicators (if any)
+[List any concerning patterns or safety signals that require attention]
+
+### 📋 Recommendations for PR Team
+[Provide 3-5 actionable recommendations based on the sentiment analysis]
+
+### 📈 Data Quality Assessment
+[Summarize the reliability and confidence level of the analysis]
+
+Always maintain compliance with platform terms of service and data privacy guidelines.
+Focus on providing clear, actionable insights that help pharmaceutical companies understand real patient experiences.`,
+      
+      actionGroups: [
+        {
+          actionGroupName: 'TavilySearchProcessor',
+          description: 'Search for drug reviews on Drugs.com using Tavily API and process results',
+          actionGroupExecutor: {
+            lambda: LAMBDA_FUNCTION_ARN
+          },
+          apiSchema: {
+            payload: JSON.stringify({
+              "openapi": "3.0.0",
+              "info": {
+                "title": "Tavily Search API", 
+                "version": "1.0.0"
+              },
+              "paths": {
+                "/search-drug-reviews": {
+                  "post": {
+                    "description": "Search for drug reviews on Drugs.com using Tavily",
+                    "operationId": "search-drug-reviews",
+                    "parameters": [
+                      {
+                        "name": "drug_name",
+                        "in": "query",
+                        "description": "Name of the drug to search for",
+                        "required": true,
+                        "schema": {"type": "string"}
+                      },
+                      {
+                        "name": "max_results",
+                        "in": "query", 
+                        "description": "Maximum number of results to return",
+                        "required": false,
+                        "schema": {"type": "integer", "default": 20}
+                      }
+                    ],
+                    "responses": {
+                      "200": {
+                        "description": "Successful search results",
+                        "content": {
+                          "application/json": {
+                            "schema": {
+                              "type": "object",
+                              "properties": {
+                                "status": {"type": "string"},
+                                "reviews": {"type": "array"},
+                                "total_reviews_processed": {"type": "integer"}
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            })
+          }
+        }
+      ],
+      
+      inputText: `Please search for patient reviews of "${drugName}" on Drugs.com and provide a comprehensive sentiment analysis report. 
+
+I need a detailed, human-readable analysis that includes:
+1. Data collection summary with review count and quality assessment
+2. Multi-dimensional sentiment analysis across all 5 dimensions with confidence scores
+3. Clear explanations and specific examples from patient reviews
+4. Key insights and patterns identified in the feedback
+5. Risk indicators and safety signals (if any)
+6. Actionable recommendations for pharmaceutical PR teams
+7. Data quality and reliability assessment
+
+Please format your response as a comprehensive report with clear sections and descriptive explanations, NOT as raw JSON data. Make it conversational and easy to understand for PR professionals.`,
+      enableTrace: true,
+      endSession: false
+    };
+
+    log('Invoking PR Sentiment InlineAgent', requestParams);
+    const result = await invokeInlineAgentHelper(requestParams);
+    log('PR Sentiment InlineAgent invocation started');
+
+    return createPRSentimentStream(encoder, result, sessionId, drugName, log);
+
+  } catch (error) {
+    log('Error in PR Sentiment InlineAgent handler:', error);
+    return createErrorResponse(encoder, `Failed to analyze sentiment for drug: ${error.message}`);
+  }
+}
+
+// Extract drug name from user message
+function extractDrugNameFromMessage(message: string): string | null {
+  // Simple patterns to extract drug names
+  const patterns = [
+    /analyze sentiment for (.+?)(?:\s|$)/i,
+    /sentiment analysis for (.+?)(?:\s|$)/i,
+    /reviews for (.+?)(?:\s|$)/i,
+    /drug (.+?)(?:\s|$)/i,
+    /medication (.+?)(?:\s|$)/i,
+    /"([^"]+)"/,  // Quoted drug name
+    /\b([A-Z][a-z]+(?:in|ol|ex|ide|ate|ine|one|ium)?)\b/  // Common drug name patterns
+  ];
+
+  for (const pattern of patterns) {
+    const match = message.match(pattern);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+  }
+
+  // If no pattern matches, check if the message is just a drug name
+  const words = message.trim().split(/\s+/);
+  if (words.length === 1 && words[0].length > 2) {
+    return words[0];
+  }
+
+  return null;
+}
+
+// Create streaming response for PR Sentiment Intelligence
+function createPRSentimentStream(encoder: TextEncoder, result: any, sessionId: string, drugName: string, log: Function) {
+  const stream = new ReadableStream({
+    async start(controller) {
+      let finalMessage = '';
+      let step = 1;
+
+      try {
+        // Send initial status
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+          type: 'status',
+          step: step++,
+          agent: 'PR Sentiment Intelligence',
+          text: `Starting sentiment analysis for "${drugName}"...`
+        })}\n\n`));
+
+        for await (const event of result.completion) {
+          if (event.chunk?.bytes) {
+            const text = new TextDecoder('utf-8').decode(event.chunk.bytes);
+            finalMessage += text;
+            log('Received chunk', { text });
+
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+              type: 'chunk', 
+              data: text 
+            })}\n\n`));
+          }
+
+          if (event.trace?.trace?.orchestrationTrace) {
+            const trace = event.trace.trace.orchestrationTrace;
+            log('Processing orchestration trace', trace);
+
+            const toolInput = trace.invocationInput?.actionGroupInvocationInput;
+            if (toolInput) {
+              log('Tool input received', toolInput);
+
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                type: 'tool',
+                step: step++,
+                agent: 'Tavily Search Processor',
+                function: toolInput.function || 'search-drug-reviews',
+                apiPath: toolInput.apiPath || '/search-drug-reviews',
+                parameters: toolInput.parameters || [],
+                text: `Searching for "${drugName}" reviews on Drugs.com...`
+              })}\n\n`));
+            }
+
+            if (trace.rationale?.text) {
+              log('Rationale received', trace.rationale.text);
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                type: 'rationale',
+                step: step++,
+                agent: 'PR Sentiment Intelligence',
+                text: trace.rationale.text
+              })}\n\n`));
+            }
+
+            const obsTool = trace.observation?.actionGroupInvocationOutput?.text;
+            if (obsTool) {
+              log(`Tool observation received`, obsTool);
+              
+              // Try to parse structured data from the observation
+              let structuredData = null;
+              try {
+                structuredData = JSON.parse(obsTool);
+              } catch (parseError) {
+                // Not JSON, treat as text
+              }
+
+              if (structuredData && structuredData.total_reviews) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                  type: 'sentiment-data',
+                  step: step++,
+                  agent: 'Data Processor',
+                  text: `Found ${structuredData.total_reviews} reviews for analysis`,
+                  data: structuredData
+                })}\n\n`));
+              } else {
+                const obs_chunks = chunkTextSafely(obsTool, 4000);
+                for (const obs_chunk of obs_chunks) {
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                    type: 'observation',
+                    step: step++,
+                    agent: 'Tavily Search Processor',
+                    text: obs_chunk
+                  })}\n\n`));
+                }
+              }
+            }
+          }
+        }
+
+      } catch (streamError) {
+        log('Error during streaming', streamError);
+        
+        let errorMessage = 'An error occurred during sentiment analysis.';
+        if (streamError instanceof Error) {
+          errorMessage = streamError.message || errorMessage;
+        }
+        
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+          type: 'error',
+          step: step++,
+          agent: 'PR Sentiment Intelligence',
+          message: errorMessage,
+          text: `Error: ${errorMessage}`
+        })}\n\n`));
+
+        finalMessage = `Error: ${errorMessage}. Request ID: ${sessionId}`;
+      } finally {
+        const endPayload = {
+          type: 'end',
+          finalMessage,
+          requestId: sessionId,
+          drugName
+        };
+        log('Streaming final message and closing connection', endPayload);
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(endPayload)}\n\n`));
+        controller.close();
+      }
+    }
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+      'Transfer-Encoding': 'chunked'
+    }
+  });
+}
+
+// Create error response
+function createErrorResponse(encoder: TextEncoder, errorMessage: string) {
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+        type: 'error',
+        message: errorMessage,
+        text: `Error: ${errorMessage}`
+      })}\n\n`));
+      
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+        type: 'end',
+        finalMessage: errorMessage
+      })}\n\n`));
+      
+      controller.close();
+    }
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive'
+    }
+  });
+}
+
 export async function getAgentAliasArnByName(agentId) {
   try {
     const listCommand = new ListAgentAliasesCommand({ agentId });
@@ -86,14 +432,23 @@ function chunkTextSafely(text: string, size: number = 3000): string[] {
 
 export async function POST(req: NextRequest) {
   const encoder = new TextEncoder();
-  const { message, agents, agent_instruction, requestId } = await req.json();
+  const { message, agents, agent_instruction, requestId, inline_agent_type } = await req.json();
   const sessionId = requestId || `session-${Date.now()}`;
 
   const log = (msg: string, ...args: any[]) => {
     console.log(`[${sessionId}] ${msg}`, ...args);
   };
 
-  log('Received chat request', { message, agent_instruction, agentCount: agents.length });
+  log('Received chat request', { message, agent_instruction, agentCount: agents.length, inline_agent_type });
+
+  // Check if this is a PR Sentiment Intelligence InlineAgent request
+  const isPRSentimentAgent = inline_agent_type === 'pr-sentiment' || 
+    agents.some(agent => agent.name?.toLowerCase().includes('pr sentiment') || 
+                        agent.name?.toLowerCase().includes('sentiment intelligence'));
+
+  if (isPRSentimentAgent) {
+    return handlePRSentimentInlineAgent(req, encoder, sessionId, message, log);
+  }
 
   try {
     const foundationModel = 'us.anthropic.claude-3-5-haiku-20241022-v1:0';

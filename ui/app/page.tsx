@@ -81,7 +81,9 @@ export default function Home() {
             <div
               key={agent.id}
               className={`bg-white p-4 shadow-lg rounded-lg cursor-pointer transition transform hover:scale-105 hover:shadow-2xl border-2 aspect-square flex flex-col justify-between ${
-                isSupervisorType(agent) ? 'border-purple-500' : 'border-gray-300'
+                isSupervisorType(agent) ? 'border-purple-500' : 
+                agent.isInlineAgent ? 'border-green-500 bg-gradient-to-br from-green-50 to-blue-50' : 
+                'border-gray-300'
               }`}
               onClick={(e) => handleCardClick(e, agent)}
             >
@@ -102,6 +104,11 @@ export default function Home() {
                     Supervisor
                   </span>
                 )}
+                {agent.isInlineAgent && (
+                  <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-semibold">
+                    InlineAgent
+                  </span>
+                )}
               </div>
 
               {/* Agent image centered */}
@@ -109,7 +116,9 @@ export default function Home() {
                 <img 
                   src={agent.image} 
                   alt="Agent Icon" 
-                  className="w-16 h-16 rounded-full border-2 border-blue-500 shadow-lg" 
+                  className={`w-16 h-16 rounded-full border-2 shadow-lg ${
+                    agent.isInlineAgent ? 'border-green-500' : 'border-blue-500'
+                  }`} 
                 />
               </div>
 
@@ -124,7 +133,9 @@ export default function Home() {
                 <div className="flex flex-wrap gap-1 justify-center">
                   {agent.tags?.length ? (
                     agent.tags.slice(0, 2).map((tag) => (
-                      <span key={tag} className="bg-blue-200 text-blue-800 text-xs px-2 py-1 rounded-full shadow-sm">
+                      <span key={tag} className={`text-xs px-2 py-1 rounded-full shadow-sm ${
+                        agent.isInlineAgent ? 'bg-green-200 text-green-800' : 'bg-blue-200 text-blue-800'
+                      }`}>
                         {tag}
                       </span>
                     ))
@@ -163,7 +174,7 @@ export default function Home() {
 
         {/* Filter Bar */}
         <div className="flex gap-3 mb-4 justify-center">
-          {['all', 'collaborator', 'non-collaborator'].map((type) => (
+          {['all', 'collaborator', 'non-collaborator', 'inline-agent'].map((type) => (
             <span
               key={type}
               onClick={() => setFilter(type)}
@@ -171,7 +182,10 @@ export default function Home() {
                 filter === type ? 'bg-blue-200 border-blue-500 text-blue-700' : 'bg-gray-100 border-gray-300 text-gray-600'
               }`}
             >
-              {type === 'all' ? 'All' : type === 'collaborator' ? 'Supervisors' : 'Individual'}
+              {type === 'all' ? 'All' : 
+               type === 'collaborator' ? 'Supervisors' : 
+               type === 'non-collaborator' ? 'Individual' :
+               type === 'inline-agent' ? 'InlineAgents' : type}
             </span>
           ))}
         </div>
@@ -196,6 +210,9 @@ export default function Home() {
 
               {(filter === 'all' || filter === 'non-collaborator') &&
                 renderAgents('Individual Agents', (a) => a.agentCollaboration === 'DISABLED')}
+
+              {(filter === 'all' || filter === 'inline-agent') &&
+                renderAgents('InlineAgents', (a) => a.isInlineAgent === true)}
             </>
           )}
 

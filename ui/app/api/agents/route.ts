@@ -145,6 +145,37 @@ export async function GET() {
 
       const validAgents = detailedAgents.filter(agent => agent !== null);
 
+      // Add PR Sentiment Intelligence InlineAgent
+      const prSentimentAgent = {
+        id: 'pr-sentiment-intelligence-inline',
+        name: 'PR Sentiment Intelligence Agent',
+        description: 'AI-powered pharmaceutical sentiment analysis agent that collects and analyzes patient reviews from Drugs.com using InlineAgent technology. Provides multi-dimensional sentiment analysis, risk detection, and patient experience insights.',
+        version: '1.0',
+        foundationModel: 'us.anthropic.claude-3-5-haiku-20241022-v1:0',
+        orchestrationType: 'InlineAgent',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        tags: ['InlineAgent', 'Pharmaceutical', 'Sentiment Analysis', 'Healthcare', 'PR Intelligence'],
+        image: '/images/default_agent_icon.png',
+        category: 'InlineAgent',
+        agentCollaboration: 'INLINE_AGENT',
+        agentResourceRoleArn: 'N/A',
+        agentStatus: 'ACTIVE',
+        instruction: 'Pharmaceutical data collection specialist for sentiment analysis of patient reviews',
+        promptOverrideConfiguration: {},
+        collaborators: null,
+        isInlineAgent: true,
+        capabilities: [
+          'Drug review collection from Drugs.com',
+          'Multi-dimensional sentiment analysis',
+          'Risk detection and safety signals',
+          'Patient experience insights',
+          'Compliance with healthcare guidelines'
+        ]
+      };
+
+      validAgents.push(prSentimentAgent);
+
       return NextResponse.json(validAgents);
     } catch (error) {
       console.error("Error fetching Bedrock agents:", error);

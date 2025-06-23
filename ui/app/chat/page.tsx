@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
   sender: string;
@@ -31,6 +33,143 @@ export default function ChatPage() {
   );
   const [alwaysCollapseTraces, setAlwaysCollapseTraces] = useState(false);
 
+  // Check if this is a PR Sentiment Intelligence InlineAgent request
+  const isPRSentimentAgent = selectedAgents.some(agent => agent.isInlineAgent);
+
+  // Component for displaying sentiment analysis results
+  const SentimentAnalysisResults = ({ data }) => {
+    if (!data || !data.total_reviews) return null;
+    
+    return (
+      <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg border border-green-200 mt-2">
+        <h4 className="font-semibold text-green-800 mb-2">📊 Sentiment Analysis Results</h4>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="font-medium">Total Reviews:</span> {data.total_reviews}
+          </div>
+          <div>
+            <span className="font-medium">Source:</span> Drugs.com
+          </div>
+          {data.search_metadata && (
+            <div className="col-span-2">
+              <span className="font-medium">Search Query:</span> {data.search_metadata.search_query || 'N/A'}
+            </div>
+          )}
+        </div>
+        {data.reviews && data.reviews.length > 0 && (
+          <div className="mt-3">
+            <span className="font-medium text-sm">Sample Reviews:</span>
+            <div className="max-h-32 overflow-y-auto mt-1">
+              {data.reviews.slice(0, 3).map((review, idx) => (
+                <div key={idx} className="text-xs bg-white p-2 rounded border mb-1">
+                  {review.content?.substring(0, 100)}...
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Component for displaying formatted sentiment analysis report
+  const SentimentAnalysisReport = ({ text }) => {
+    if (!text || typeof text !== 'string') return null;
+
+    // Check if this looks like a sentiment analysis report
+    const isSentimentReport = text.includes('Sentiment Analysis Report') || 
+                             text.includes('Multi-Dimensional Sentiment Analysis') ||
+                             text.includes('Overall Patient Sentiment') ||
+                             text.includes('Drug Efficacy Perception') ||
+                             text.includes('Data Collection Summary');
+
+    if (!isSentimentReport) {
+      // If not a sentiment report, render as regular markdown
+      return (
+        <div className="mt-2 max-w-none">
+          <ReactMarkdown 
+            remarkPlugins={[remarkGfm]}
+            components={{
+              h1: ({children}) => <h1 className="text-2xl font-bold text-gray-900 mb-4">{children}</h1>,
+              h2: ({children}) => <h2 className="text-xl font-semibold text-gray-800 mb-3">{children}</h2>,
+              h3: ({children}) => <h3 className="text-lg font-medium text-gray-700 mb-2">{children}</h3>,
+              p: ({children}) => <p className="text-gray-700 mb-2 leading-relaxed">{children}</p>,
+              ul: ({children}) => <ul className="list-none space-y-1 mb-3">{children}</ul>,
+              li: ({children}) => (
+                <li className="flex items-start gap-2 text-gray-700">
+                  <span className="text-blue-500 mt-1">•</span>
+                  <span>{children}</span>
+                </li>
+              ),
+              strong: ({children}) => <strong className="font-semibold text-gray-900">{children}</strong>
+            }}
+          >
+            {text}
+          </ReactMarkdown>
+        </div>
+      );
+    }
+
+    // For sentiment reports, use enhanced styling
+    return (
+      <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-6 rounded-lg border border-blue-200 mt-4">
+        <div className="max-w-none">
+          <ReactMarkdown 
+            remarkPlugins={[remarkGfm]}
+            components={{
+              h1: ({children}) => (
+                <h1 className="text-2xl font-bold text-blue-900 mb-6 flex items-center gap-2">
+                  {children}
+                </h1>
+              ),
+              h2: ({children}) => (
+                <h2 className="text-2xl font-bold text-blue-900 mb-6 flex items-center gap-2">
+                  {children}
+                </h2>
+              ),
+              h3: ({children}) => (
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 mt-6 border-b border-gray-300 pb-2">
+                  {children}
+                </h3>
+              ),
+              p: ({children}) => {
+                // Check if this paragraph contains sentiment classification
+                const childText = children?.toString() || '';
+                if (childText.includes('Sentiment:') || childText.includes('Perception:') || 
+                    childText.includes('Tolerance:') || childText.includes('Experience:') || 
+                    childText.includes('Likelihood:')) {
+                  return (
+                    <div className="bg-white p-4 rounded-lg border-l-4 border-blue-500 shadow-sm mb-3">
+                      <p className="font-semibold text-blue-800 mb-1">{children}</p>
+                    </div>
+                  );
+                }
+                return <p className="text-gray-700 mb-3 leading-relaxed">{children}</p>;
+              },
+              ul: ({children}) => <ul className="list-none space-y-2 mb-4">{children}</ul>,
+              li: ({children}) => (
+                <li className="flex items-start gap-2 text-gray-700">
+                  <span className="text-blue-500 mt-1 flex-shrink-0">•</span>
+                  <span className="flex-1">{children}</span>
+                </li>
+              ),
+              strong: ({children}) => <strong className="font-semibold text-gray-900">{children}</strong>,
+              // Handle code blocks if any
+              code: ({children}) => (
+                <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono">{children}</code>
+              ),
+              pre: ({children}) => (
+                <pre className="bg-gray-100 p-3 rounded-lg overflow-x-auto text-sm">{children}</pre>
+              )
+            }}
+          >
+            {text}
+          </ReactMarkdown>
+        </div>
+      </div>
+    );
+  };
+
   const formatTime = (timestamp) => new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const sendMessage = async () => {
@@ -40,6 +179,10 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsProcessing(true);
+
+    // Check if we're using InlineAgent
+    const isInlineAgent = selectedAgents.some(agent => agent.isInlineAgent);
+    const inlineAgentType = isInlineAgent ? 'pr-sentiment' : null;
 
     // Insert placeholder trace message immediately
     const chat_request_id = chatRequestIdRef.current;
@@ -61,7 +204,8 @@ export default function ChatPage() {
           message: input, 
           agents: selectedAgents, 
           agent_instruction: instruction,
-          requestId : chat_request_id
+          requestId : chat_request_id,
+          inline_agent_type: inlineAgentType
         })
       });
 
@@ -387,6 +531,21 @@ export default function ChatPage() {
                           <span className="block">{step.text}</span>
                         </div>
                         )}
+                        {step.type === 'sentiment-data' && (
+                          <div className="max-w-full">
+                            <span className="font-semibold">📊 Sentiment Data:</span>
+                            <span className="block mb-2">{step.text}</span>
+                            {step.data && <SentimentAnalysisResults data={step.data} />}
+                          </div>
+                        )}
+                        {step.type === 'status' && (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-blue-500 text-lg">ℹ️</span>
+                              <div className="text-blue-800 font-medium">{step.text}</div>
+                            </div>
+                          </div>
+                        )}
                         {step.type === 'knowledge-base' && (
                           <div className="max-w-full break-all whitespace-pre-wrap mt-4 p-3 border rounded-md bg-gray-50">
                             <span className="font-semibold">📚 Knowledge Base Result:</span>
@@ -432,10 +591,21 @@ export default function ChatPage() {
                   </details>
                 )}
                 {msg.text && (
-                  <p className="mt-3 break-all whitespace-pre-wrap">
-                    <strong>{msg.sender}:</strong> {msg.text}
-                    <span className="ml-2 text-xs text-gray-400">{formatTime(msg.timestamp)}</span>
-                  </p>
+                  <div className="mt-3">
+                    <p className="break-all whitespace-pre-wrap">
+                      <strong>{msg.sender}:</strong>
+                      <span className="ml-2 text-xs text-gray-400">{formatTime(msg.timestamp)}</span>
+                    </p>
+                    
+                    {/* Check if this is a sentiment analysis report and render it specially */}
+                    {isPRSentimentAgent && msg.sender === 'AI Agent' ? (
+                      <SentimentAnalysisReport text={msg.text} />
+                    ) : (
+                      <div className="mt-2 break-all whitespace-pre-wrap text-gray-800">
+                        {msg.text}
+                      </div>
+                    )}
+                  </div>
                 )}
                 {msg.images && msg.images.length > 0 && (
                 <div className="mt-2 space-y-2">
@@ -464,7 +634,9 @@ export default function ChatPage() {
             <input
               type="text"
               className="flex-1 border border-gray-300 rounded px-3 py-2"
-              placeholder="Type your message..."
+              placeholder={isPRSentimentAgent ? 
+                "Enter drug name for sentiment analysis (e.g., 'Analyze sentiment for Lipitor')" : 
+                "Type your message..."}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
