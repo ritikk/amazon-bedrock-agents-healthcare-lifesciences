@@ -74,13 +74,13 @@ export default function Home() {
     if (filtered.length === 0) return null;
 
     return (
-      <div>
-        <h2 className="text-xl font-semibold mb-4 mt-6 text-blue-800">{title}</h2>
-        <div className="grid grid-cols-4 gap-6">
+      <div className="text-center">
+        <h2 className="text-xl font-semibold mb-6 mt-8 text-blue-800">{title}</h2>
+        <div className="grid grid-cols-5 gap-4 justify-items-center max-w-6xl mx-auto">
           {filtered.map((agent) => (
             <div
               key={agent.id}
-              className={`bg-white p-4 shadow-lg rounded-lg cursor-pointer transition transform hover:scale-105 hover:shadow-2xl border-2 aspect-square flex flex-col justify-between ${
+              className={`bg-white p-3 shadow-lg rounded-lg cursor-pointer transition transform hover:scale-105 hover:shadow-2xl border-2 aspect-square flex flex-col justify-between w-full max-w-48 ${
                 isSupervisorType(agent) ? 'border-purple-500' : 
                 agent.isInlineAgent ? 'border-green-500 bg-gradient-to-br from-green-50 to-blue-50' : 
                 'border-gray-300'
@@ -91,7 +91,7 @@ export default function Home() {
               <div className="flex justify-between items-start mb-2">
                 <input
                   type="checkbox"
-                  className="w-4 h-4"
+                  className="w-3 h-3"
                   checked={selectedAgents.some((a) => a.id === agent.id)}
                   disabled={isCheckboxDisabled(agent)}
                   onChange={(e) => {
@@ -100,23 +100,23 @@ export default function Home() {
                   }}
                 />
                 {isSupervisorType(agent) && (
-                  <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full font-semibold">
+                  <span className="bg-purple-100 text-purple-800 text-xs px-1.5 py-0.5 rounded-full font-semibold">
                     Supervisor
                   </span>
                 )}
                 {agent.isInlineAgent && (
-                  <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-semibold">
+                  <span className="bg-green-100 text-green-800 text-xs px-1.5 py-0.5 rounded-full font-semibold">
                     InlineAgent
                   </span>
                 )}
               </div>
 
               {/* Agent image centered */}
-              <div className="flex justify-center mb-3">
+              <div className="flex justify-center mb-2">
                 <img 
                   src={agent.image} 
                   alt="Agent Icon" 
-                  className={`w-16 h-16 rounded-full border-2 shadow-lg ${
+                  className={`w-12 h-12 rounded-full border-2 shadow-lg ${
                     agent.isInlineAgent ? 'border-green-500' : 'border-blue-500'
                   }`} 
                 />
@@ -125,15 +125,15 @@ export default function Home() {
               {/* Agent info */}
               <div className="text-center flex-grow flex flex-col justify-between">
                 <div>
-                  <h3 className="font-bold text-sm text-gray-900 mb-2 line-clamp-2">{agent.name}</h3>
-                  <p className="text-xs text-gray-600 mb-3 line-clamp-3">{agent.description}</p>
+                  <h3 className="font-bold text-xs text-gray-900 mb-1 line-clamp-2">{agent.name}</h3>
+                  <p className="text-xs text-gray-600 mb-2 line-clamp-2">{agent.description}</p>
                 </div>
                 
                 {/* Tags at bottom */}
                 <div className="flex flex-wrap gap-1 justify-center">
                   {agent.tags?.length ? (
-                    agent.tags.slice(0, 2).map((tag) => (
-                      <span key={tag} className={`text-xs px-2 py-1 rounded-full shadow-sm ${
+                    agent.tags.slice(0, 1).map((tag) => (
+                      <span key={tag} className={`text-xs px-1.5 py-0.5 rounded-full shadow-sm ${
                         agent.isInlineAgent ? 'bg-green-200 text-green-800' : 'bg-blue-200 text-blue-800'
                       }`}>
                         {tag}
@@ -142,8 +142,8 @@ export default function Home() {
                   ) : (
                     <span className="text-gray-400 text-xs">No tags</span>
                   )}
-                  {agent.tags?.length > 2 && (
-                    <span className="text-gray-500 text-xs">+{agent.tags.length - 2}</span>
+                  {agent.tags?.length > 1 && (
+                    <span className="text-gray-500 text-xs">+{agent.tags.length - 1}</span>
                   )}
                 </div>
               </div>
@@ -166,14 +166,14 @@ export default function Home() {
       <Head>
         <title>Healthcare & Life Sciences AI Agents</title>
       </Head>
-      <div className="container mx-auto max-w-7xl p-4">
-        <div className="flex flex-col items-center mb-4">
+      <div className="container mx-auto max-w-8xl p-4">
+        <div className="flex flex-col items-center mb-6">
           <Image src="/images/aws-logo.svg" alt="AWS Logo" width={150} height={50} className="mb-4" />
-          <h1 className="text-2xl font-bold">Healthcare and Life Sciences Agent Catalog</h1>
+          <h1 className="text-2xl font-bold text-center">Healthcare and Life Sciences Agent Catalog</h1>
         </div>
 
         {/* Filter Bar */}
-        <div className="flex gap-3 mb-4 justify-center">
+        <div className="flex gap-3 mb-6 justify-center">
           {['all', 'collaborator', 'non-collaborator', 'inline-agent'].map((type) => (
             <span
               key={type}
@@ -190,7 +190,7 @@ export default function Home() {
           ))}
         </div>
 
-        <div className="max-w-2xl mx-auto mb-4">
+        <div className="max-w-2xl mx-auto mb-6">
           <input
             type="text"
             className="w-full p-2 border rounded"
