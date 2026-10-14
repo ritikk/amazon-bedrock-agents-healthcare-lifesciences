@@ -1,12 +1,54 @@
 import boto3
 import time
 import os
+import re
 import uuid
 import json
 import sys
 from collections import defaultdict
 
 redshift_client = boto3.client('redshift-data')
+
+# The query text reaching query_redshift() is produced by an LLM from untrusted
+# user input, so it is restricted to a single read-only statement (CWE-89).
+_FORBIDDEN_SQL_KEYWORDS = (
+    "insert", "update", "delete", "drop", "create", "alter", "truncate",
+    "grant", "revoke", "merge", "copy", "unload", "vacuum", "call", "execute",
+)
+
+# Redshift Data API database user. Kept configurable so deployments can use a
+# read-only user instead of a privileged one.
+REDSHIFT_DB_USER = os.environ.get("REDSHIFT_DB_USER", "admin")
+REDSHIFT_DATABASE = os.environ.get("REDSHIFT_DATABASE", "dev")
+REDSHIFT_CLUSTER_ID = os.environ.get(
+    "REDSHIFT_CLUSTER_IDENTIFIER", "biomarker-redshift-cluster"
+)
+
+
+def validate_read_only_query(query):
+    """
+    Allow only a single read-only SELECT/WITH statement. Rejects stacked
+    statements, comments and any data/schema modifying keyword.
+    """
+    if not isinstance(query, str) or not query.strip():
+        raise ValueError("Query must be a non-empty string")
+
+    statement = query.strip().rstrip(";").strip()
+
+    if ";" in statement:
+        raise ValueError("Only a single SQL statement is allowed")
+    if "--" in statement or "/*" in statement:
+        raise ValueError("SQL comments are not allowed")
+
+    lowered = statement.lower()
+    if not (lowered.startswith("select") or lowered.startswith("with")):
+        raise ValueError("Only SELECT/WITH queries are allowed")
+    for keyword in _FORBIDDEN_SQL_KEYWORDS:
+        if re.search(rf"\b{keyword}\b", lowered):
+            raise ValueError(f"Disallowed SQL keyword: {keyword}")
+
+    return statement
+
 
 def refineSQL(sql, question):
     raw_schema = get_schema()
@@ -113,7 +155,7 @@ def get_schema():
             AND NOT a.attisdropped;"""
     
     try:
-        result = redshift_client.execute_statement(Database='dev', DbUser='admin', Sql=sql, ClusterIdentifier='biomarker-redshift-cluster')
+        result = redshift_client.execute_statement(Database=REDSHIFT_DATABASE, DbUser=REDSHIFT_DB_USER, Sql=sql, ClusterIdentifier=REDSHIFT_CLUSTER_ID)
         print("SQL statement execution started. StatementId:", result['Id'])
     
         def wait_for_query_completion(statement_id):
@@ -139,7 +181,8 @@ def get_schema():
 
 def query_redshift(query):
     try:
-        result = redshift_client.execute_statement(Database='dev', DbUser='admin', Sql=query, ClusterIdentifier='biomarker-redshift-cluster')
+        query = validate_read_only_query(query)
+        result = redshift_client.execute_statement(Database=REDSHIFT_DATABASE, DbUser=REDSHIFT_DB_USER, Sql=query, ClusterIdentifier=REDSHIFT_CLUSTER_ID)
         print("SQL statement execution started. StatementId:", result['Id'])
     
         def wait_for_query_completion(statement_id):
@@ -207,11 +250,15 @@ def lambda_handler(event, context):
         
         elif event['apiPath'] == "/queryredshift":
             params =event['parameters']
+            query = None
             for param in params:
                 if param.get("name") == "query":
                     query = param.get("value")
                     print(query)
-                
+
+            if query is None:
+                raise ValueError("Missing required parameter: query")
+
             result = query_redshift(query)
 
         else:
