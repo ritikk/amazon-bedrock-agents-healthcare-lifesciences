@@ -96,6 +96,11 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub "${EnvironmentName}-${AWS::AccountId}-${AWS::Region}-agent-build-bucket"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -112,6 +117,9 @@ Resources:
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
+          # SECURITY-NOTE: False positive for "Principal: * with s3:*". This is a
+          # Deny statement that forces TLS for every principal and action; the
+          # wildcards are required for the control to be effective.
           - Sid: ForceSSLOnlyAccess
             Effect: Deny
             Principal: "*"
@@ -995,6 +1003,15 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub "${EnvironmentName}-${AWS::AccountId}-${AWS::Region}-log-bucket"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
 
   LogBucketPolicy:
     Type: AWS::S3::BucketPolicy
