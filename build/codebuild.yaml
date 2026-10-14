@@ -97,7 +97,7 @@ Resources:
               elif event['RequestType'] == 'Delete':
                   # No action needed for delete, as S3 cleanup will be handled separately
                   cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 300
 
   CleanupLambdaRole:
@@ -162,7 +162,7 @@ Resources:
                       cfnresponse.send(event, context, cfnresponse.FAILED, {"Error": str(e)})
               else:
                   cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 300
 
   CleanupCustomResource:

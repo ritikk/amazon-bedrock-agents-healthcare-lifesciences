@@ -1,5 +1,5 @@
 # Use a slim Debian-based Python image
-FROM public.ecr.aws/docker/library/python:3.12
+FROM public.ecr.aws/docker/library/python:3.13
 
 # Define the Lambda task root
 ARG LAMBDA_TASK_ROOT=/var/task

@@ -50,7 +50,7 @@ Resources:
     Properties:
       FunctionName: UniProtSearch
       Role: !GetAtt UniProtSearchLambdaRole.Arn
-      Runtime: python3.12
+      Runtime: python3.13
       Handler: lambda_function.lambda_handler
       Timeout: 30
       MemorySize: 256
@@ -98,7 +98,7 @@ Resources:
     Properties:
       FunctionName: UniProtDetails
       Role: !GetAtt UniProtDetailsLambdaRole.Arn
-      Runtime: python3.12
+      Runtime: python3.13
       Handler: lambda_function.lambda_handler
       Timeout: 30
       MemorySize: 256

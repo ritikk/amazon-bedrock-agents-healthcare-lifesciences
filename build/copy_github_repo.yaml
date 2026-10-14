@@ -46,7 +46,7 @@ Resources:
     Properties:
       Handler: index.lambda_handler
       Role: !GetAtt CopyGitRepoRole.Arn
-      Runtime: python3.12
+      Runtime: python3.13
       EphemeralStorage:
         Size: 1024
       Timeout: 300

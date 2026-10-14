@@ -78,7 +78,7 @@ Resources:
     Properties:
       FunctionName: WebSummaryAnalyzer
       Role: !GetAtt WebSummaryAnalyzerLambdaRole.Arn
-      Runtime: python3.12
+      Runtime: python3.13
       Handler: lambda_function.lambda_handler
       Timeout: 60
       MemorySize: 256
@@ -148,7 +148,7 @@ Resources:
     Properties:
       FunctionName: QCValidator
       Role: !GetAtt QCValidatorLambdaRole.Arn
-      Runtime: python3.12
+      Runtime: python3.13
       Handler: lambda_function.lambda_handler
       Timeout: 60
       MemorySize: 256

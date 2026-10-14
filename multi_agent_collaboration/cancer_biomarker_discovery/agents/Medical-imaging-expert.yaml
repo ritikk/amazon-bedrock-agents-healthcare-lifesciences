@@ -106,7 +106,7 @@ Resources:
       Code:
         S3Bucket: !Ref S3Bucket 
         S3Key: Imaginglambdafunction.zip  
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 300
       MemorySize: 256
       Environment:

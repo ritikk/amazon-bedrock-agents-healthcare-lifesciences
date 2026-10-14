@@ -48,7 +48,7 @@ Resources:
       FunctionName: clinical-data-model
       Handler: index.lambda_handler
       Role: !GetAtt ClinicalDataModelLambdaRole.Arn
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 30
       MemorySize: 256
       Code: "action_groups/clinical_data_modal"

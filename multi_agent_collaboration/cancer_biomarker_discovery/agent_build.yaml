@@ -438,7 +438,7 @@ Resources:
                   print(e)
                   send_response(event, context, 'FAILED', {'Error': str(e)})
 
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 900
       MemorySize: 3008
       Layers:
@@ -825,7 +825,7 @@ Resources:
             except Exception as e:
                 send_response(event, context, 'FAILED', {'Status': 'Failure', 'Error': str(e)})
                 print(e)
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 900
       MemorySize: 512
       Layers:
@@ -935,7 +935,7 @@ Resources:
                       cfnresponse.send(event, context, cfnresponse.FAILED, {})
               else:
                   cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 300
 
   CleanupLambdaRole:
@@ -1154,9 +1154,9 @@ Resources:
                 - GIT_LFS_SKIP_SMUDGE=1 git clone -b ${GitBranch} --single-branch ${GitRepoURL} repo
                 - cd repo/multi_agent_collaboration/cancer_biomarker_discovery/ActionGroups/scientific-plots-with-lifelines
                 - echo "Building Docker image..."
-                - docker build -t lifelines-python3.12-v2 .
+                - docker build -t lifelines-python3.13-v2 .
                 - echo "Tagging Docker image..."
-                - docker tag lifelines-python3.12-v2:latest ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}:${ImageTag}
+                - docker tag lifelines-python3.13-v2:latest ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}:${ImageTag}
                 - echo "Docker image tagged"
             post_build:
               commands:
@@ -1747,7 +1747,7 @@ Resources:
                       cfnresponse.send(event, context, cfnresponse.FAILED, {"Error": str(e)})
               else:
                   cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 900
 
   TriggerBuildLambdaRole:
@@ -1982,7 +1982,7 @@ Resources:
   AgentDiscoveryFunction:
     Type: AWS::Lambda::Function
     Properties:
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 300
       Handler: index.handler
       Role: !GetAtt LambdaExecutionRole.Arn
@@ -2056,7 +2056,7 @@ Resources:
   AgentStackCreatorFunction:
     Type: AWS::Lambda::Function
     Properties:
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 900
       Handler: index.handler
       Role: !GetAtt LambdaExecutionRole.Arn

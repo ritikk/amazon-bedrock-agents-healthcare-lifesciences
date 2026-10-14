@@ -56,7 +56,7 @@ from rich.console import Console
 from rich.markdown import Markdown
 
 PYTHON_TIMEOUT = 180
-PYTHON_RUNTIME = "python3.12"
+PYTHON_RUNTIME = "python3.13"
 DEFAULT_ALIAS = "TSTALIASID"
 DEFAULT_CI_ACTION_GROUP_NAME = "CodeInterpreterAction"
 UNDECIDABLE_CLASSIFICATION = "undecidable"
