@@ -49,7 +49,7 @@ def search_studies(query_fields=None, page_size=10, max_pages=1, fields=None):
         print("[DEBUG] Sending request to ClinicalTrials.gov with params:")
         print(json.dumps(params, indent=2))
 
-        res = requests.get(base_url, params=params)
+        res = requests.get(base_url, params=params, timeout=25)
         print(f"[DEBUG] Requested URL: {res.url}")
 
         if res.status_code != 200:
@@ -90,7 +90,7 @@ def get_study_details(nct_id):
     print("[DEBUG] Sending request to ClinicalTrials.gov:")
     print(json.dumps(params, indent=2))
 
-    res = requests.get(url, params=params)
+    res = requests.get(url, params=params, timeout=25)
     print(f"[DEBUG] Requested URL: {res.url}")
 
     if res.status_code != 200:

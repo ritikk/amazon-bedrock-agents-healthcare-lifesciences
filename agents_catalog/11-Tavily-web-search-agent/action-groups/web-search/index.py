@@ -85,7 +85,7 @@ def web_search(
     request = urllib.request.Request(base_url, data=data, headers=headers)  # nosec: B310 fixed url we want to open
 
     try:
-        response = urllib.request.urlopen(request)  # nosec: B310 fixed url we want to open
+        response = urllib.request.urlopen(request, timeout=25)  # nosec: B310 fixed url we want to open
         response_data: str = response.read().decode("utf-8")
         logger.debug(f"response from Tavily AI search {response_data=}")
         return response_data

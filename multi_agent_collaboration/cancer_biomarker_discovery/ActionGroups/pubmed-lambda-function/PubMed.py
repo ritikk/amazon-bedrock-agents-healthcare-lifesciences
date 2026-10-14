@@ -26,6 +26,9 @@ class PubMed():
     MAX_QUERY_LENGTH: int = 300
     doc_content_chars_max: int = 10000
     email: str = "email@example.com"
+    # Explicit timeout prevents a hung upstream call from exhausting the
+    # Lambda's execution budget (CWE-400).
+    http_timeout: float = 25.0
 
 
     
@@ -58,13 +61,18 @@ class PubMed():
         Return an iterator of dictionaries containing the document metadata.
         """
 
-        url = (
-            self.base_url_esearch
-            + "db=pubmed&term="
-            + str({urllib.parse.quote(query)})
-            + f"&retmode=json&retmax={self.top_k_results}&usehistory=y"
+        # Build the query string with proper percent-encoding instead of raw
+        # concatenation so user input cannot alter the request (CWE-918).
+        url = self.base_url_esearch + urllib.parse.urlencode(
+            {
+                "db": "pubmed",
+                "term": query,
+                "retmode": "json",
+                "retmax": self.top_k_results,
+                "usehistory": "y",
+            }
         )
-        result = urllib.request.urlopen(url)
+        result = urllib.request.urlopen(url, timeout=self.http_timeout)
         text = result.read().decode("utf-8")
         json_text = json.loads(text)
 
@@ -82,18 +90,19 @@ class PubMed():
         return data
 
     def retrieve_article(self, uid: str, webenv: str) -> dict:
-        url = (
-            self.base_url_efetch
-            + "db=pubmed&retmode=xml&id="
-            + uid
-            + "&webenv="
-            + webenv
+        url = self.base_url_efetch + urllib.parse.urlencode(
+            {
+                "db": "pubmed",
+                "retmode": "xml",
+                "id": uid,
+                "webenv": webenv,
+            }
         )
 
         retry = 0
         while True:
             try:
-                result = urllib.request.urlopen(url)
+                result = urllib.request.urlopen(url, timeout=self.http_timeout)
                 break
             except urllib.error.HTTPError as e:
                 if e.code == 429 and retry < self.max_retry:

@@ -33,7 +33,7 @@ def lambda_handler(event, context):
         try:
             # Encode the question parameter to escape special characters
             encoded_question = urllib.parse.quote(question)
-            with urllib.request.urlopen(EXTERNAL_LAMBDA + encoded_question) as response:
+            with urllib.request.urlopen(EXTERNAL_LAMBDA + encoded_question, timeout=25) as response:
                 charset = response.headers.get_content_charset() or 'utf-8'
                 external_data = response.read().decode(charset)
                 json_data = json.loads(external_data)

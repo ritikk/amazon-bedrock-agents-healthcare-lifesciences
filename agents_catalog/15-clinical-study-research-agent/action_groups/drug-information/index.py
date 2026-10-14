@@ -24,7 +24,7 @@ def query_fda(condition=None, route=None, limit=100):
     print("[DEBUG] FDA Query Params:")
     print(json.dumps(params, indent=2))
 
-    response = requests.get(OPEN_FDA_URL, params=params)
+    response = requests.get(OPEN_FDA_URL, params=params, timeout=25)
     print(f"[DEBUG] Requested URL: {response.url}")
 
     if response.status_code != 200:
