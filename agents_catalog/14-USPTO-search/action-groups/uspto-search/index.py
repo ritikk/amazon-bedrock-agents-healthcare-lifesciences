@@ -101,7 +101,7 @@ def uspto_search(
     request = urllib.request.Request(BASE_URL, data=data, headers=headers)  # nosec: B310 fixed url we want to open
 
     try:
-        response = urllib.request.urlopen(request)  # nosec: B310 fixed url we want to open
+        response = urllib.request.urlopen(request, timeout=25)  # nosec: B310 fixed url we want to open
         response_data: str = response.read().decode("utf-8")
         results = json.loads(response_data)
         logger.info(f"Response from USPTO search {results}")

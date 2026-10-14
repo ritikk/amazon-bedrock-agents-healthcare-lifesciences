@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import logging
+import re
 import boto3
 import subprocess
 from tqdm import tqdm
@@ -26,20 +27,32 @@ def download_s3_folder(s3_uri, local_dir):
     Download a folder from S3 to a local directory
     """
     # Parse the S3 URI
+    if not s3_uri.startswith("s3://"):
+        raise ValueError(f"Not an S3 URI: {s3_uri}")
     if not s3_uri.endswith('/'):
         s3_uri += '/'
-    
+
     bucket_name = s3_uri.split('//')[1].split('/')[0]
     prefix = '/'.join(s3_uri.split('//')[1].split('/')[1:])
-    
+
+    if not re.fullmatch(r"[A-Za-z0-9.\-_]{3,63}", bucket_name):
+        raise ValueError(f"Invalid S3 bucket name: {bucket_name}")
+    if not re.fullmatch(r"[A-Za-z0-9!\-_.*'()/ ]*", prefix):
+        raise ValueError(f"Invalid S3 key prefix: {prefix}")
+
     logging.info(f"Downloading from bucket: {bucket_name}, prefix: {prefix} to {local_dir}")
-    
-    # Use AWS CLI for efficient recursive download
-    cmd = f"aws s3 cp --recursive s3://{bucket_name}/{prefix} {local_dir}"
+
+    # Use AWS CLI for efficient recursive download. Argument-list form (no shell)
+    # prevents OS command injection (CWE-78) via the URI or destination path.
+    cmd = [
+        "aws", "s3", "cp", "--recursive",
+        f"s3://{bucket_name}/{prefix}",
+        local_dir,
+    ]
     logging.info(f"Running command: {cmd}")
-    
+
     try:
-        subprocess.check_call(cmd, shell=True)
+        subprocess.check_call(cmd)
         logging.info(f"Successfully downloaded S3 folder to {local_dir}")
     except subprocess.CalledProcessError as e:
         logging.error(f"Failed to download S3 folder: {e}")

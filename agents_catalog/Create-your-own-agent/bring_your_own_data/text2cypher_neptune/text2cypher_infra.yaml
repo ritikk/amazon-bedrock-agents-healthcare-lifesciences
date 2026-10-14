@@ -129,12 +129,16 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
+        # Scope the gateway endpoint policy to read-only access on this stack's
+        # bucket instead of s3:* on every bucket for every principal.
         - Effect: Allow
           Principal: "*"
           Action:
-          - s3:*
+          - s3:GetObject
+          - s3:ListBucket
           Resource:
-          - "*"
+          - Fn::Sub: "arn:${AWS::Partition}:s3:::reactome-data-${AWS::AccountId}-${AWS::Region}"
+          - Fn::Sub: "arn:${AWS::Partition}:s3:::reactome-data-${AWS::AccountId}-${AWS::Region}/*"
   NeptuneSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -147,8 +151,11 @@ Resources:
         ToPort:
           Ref: DBClusterPort
         IpProtocol: tcp
-        CidrIp: 0.0.0.0/0
-        Description: http access
+        # Restrict Neptune access to clients inside the VPC rather than the
+        # whole internet.
+        CidrIp:
+          Fn::GetAtt: [ VPC, CidrBlock ]
+        Description: Neptune port access from within the VPC
       Tags:
       - Key: Name
         Value:

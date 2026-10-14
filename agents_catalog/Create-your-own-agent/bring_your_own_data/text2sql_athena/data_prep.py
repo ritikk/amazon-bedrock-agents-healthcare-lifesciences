@@ -36,6 +36,19 @@ def create_s3_bucket(bucket_name, region):
         return None
 
 # Data Processing Functions
+def _safe_extract(zip_ref, destination):
+    """
+    Extract a zip archive, rejecting members that would resolve outside the
+    destination directory (zip slip / path traversal, CWE-22).
+    """
+    dest_root = os.path.realpath(destination)
+    for member in zip_ref.namelist():
+        target = os.path.realpath(os.path.join(dest_root, member))
+        if target != dest_root and not target.startswith(dest_root + os.sep):
+            raise ValueError(f"Blocked unsafe path in archive: {member}")
+    zip_ref.extractall(destination)
+
+
 def create_and_unzip(first_zip, new_directory, second_zip):
     notebook_dir = Path.cwd()
     new_dir = Path(new_directory)
@@ -43,7 +56,7 @@ def create_and_unzip(first_zip, new_directory, second_zip):
     print(f"Created directory: {new_dir}")
     
     with zipfile.ZipFile(first_zip, 'r') as zip_ref:
-        zip_ref.extractall(new_directory)
+        _safe_extract(zip_ref, new_directory)
     print(f"Unzipped {first_zip} to {new_directory}")
     
     subdirs = [d for d in new_dir.iterdir() if d.is_dir()]
@@ -55,7 +68,7 @@ def create_and_unzip(first_zip, new_directory, second_zip):
         print(second_zip_path)
         if second_zip_path.exists():
             with zipfile.ZipFile(second_zip_path, 'r') as zip_ref:
-                zip_ref.extractall(notebook_dir)
+                _safe_extract(zip_ref, notebook_dir)
             print(f"Unzipped {second_zip} in {notebook_dir}")
         else:
             print(f"Could not find {second_zip} in {auto_found_dir}")

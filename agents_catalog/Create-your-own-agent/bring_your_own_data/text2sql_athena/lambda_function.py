@@ -1,17 +1,63 @@
 import boto3
 import time
 import os
+import re
 import uuid
 import json
 import sys
 from collections import defaultdict
 
 athena_client = boto3.client('athena')
-    
+
+# Statements that may modify data or schema. The query text is produced by an LLM
+# from untrusted user input, so it must be restricted to read-only SELECTs
+# before being executed (CWE-89).
+_FORBIDDEN_SQL_KEYWORDS = (
+    "insert", "update", "delete", "drop", "create", "alter", "truncate",
+    "grant", "revoke", "merge", "replace", "attach", "unload", "copy",
+    "msck", "call", "execute", "describe", "load",
+)
+
+_DATABASE_NAME_RE = re.compile(r"^[A-Za-z0-9_]{1,128}$")
+
+
+def validate_database_name(database_name):
+    """Allowlist-validate an Athena database/schema name."""
+    if not isinstance(database_name, str) or not _DATABASE_NAME_RE.match(database_name):
+        raise ValueError(f"Invalid database name: {database_name!r}")
+    return database_name
+
+
+def validate_read_only_query(query):
+    """
+    Allow only a single read-only SELECT/WITH statement. Rejects stacked
+    statements, comments and any data/schema modifying keyword.
+    """
+    if not isinstance(query, str) or not query.strip():
+        raise ValueError("Query must be a non-empty string")
+
+    statement = query.strip().rstrip(";").strip()
+
+    if ";" in statement:
+        raise ValueError("Only a single SQL statement is allowed")
+    if "--" in statement or "/*" in statement:
+        raise ValueError("SQL comments are not allowed")
+
+    lowered = statement.lower()
+    if not (lowered.startswith("select") or lowered.startswith("with")):
+        raise ValueError("Only SELECT/WITH queries are allowed")
+    for keyword in _FORBIDDEN_SQL_KEYWORDS:
+        if re.search(rf"\b{keyword}\b", lowered):
+            raise ValueError(f"Disallowed SQL keyword: {keyword}")
+
+    return statement
+
+
 def get_schema(database_name="california_schools"):
     """
     Get schema information for all tables in Athena databases
     """
+    database_name = validate_database_name(database_name)
 
     sql = f"""
         SELECT
@@ -100,6 +146,8 @@ def query_athena(query, database_name='california_schools'):
     Execute a query on Athena
     """
     try:
+        query = validate_read_only_query(query)
+        database_name = validate_database_name(database_name)
         # Start query execution
         response = athena_client.start_query_execution(
             QueryString=query,
@@ -189,11 +237,15 @@ def lambda_handler(event, context):
         
         elif event['apiPath'] == "/queryathena":
             params =event['parameters']
+            query = None
             for param in params:
                 if param.get("name") == "query":
                     query = param.get("value")
                     print(query)
-                
+
+            if query is None:
+                raise ValueError("Missing required parameter: query")
+
             result = query_athena(query)
             print("end of query ")
 
