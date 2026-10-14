@@ -196,7 +196,7 @@ Resources:
                     }
 
       Handler: index.lambda_handler
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 30
       MemorySize: 128
       Environment:

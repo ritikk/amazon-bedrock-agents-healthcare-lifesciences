@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Unreleased Changed
+
+- Upgraded all Lambda function runtimes, Lambda container base images and the
+  `bedrock-ez-search` package requirement from Python 3.12 to Python 3.13
+
+---
+
 ## [0.1.0] - 2025-06-03
 
 ### 0.1.0 Added

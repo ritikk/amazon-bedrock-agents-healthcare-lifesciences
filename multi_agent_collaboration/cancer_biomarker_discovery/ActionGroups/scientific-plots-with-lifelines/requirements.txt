@@ -2,4 +2,4 @@ lifelines
 pandas
 plotly
 kaleido
-scipy==1.13.1
+scipy==1.14.1

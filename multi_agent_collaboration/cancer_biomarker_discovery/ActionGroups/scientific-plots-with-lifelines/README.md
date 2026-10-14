@@ -4,7 +4,7 @@
 
 1. Create image with docker
 
- docker build -t lifelines-python3.12-v2 .
+ docker build -t lifelines-python3.13-v2 .
 
 1. Create ECR Repo
 
@@ -18,7 +18,7 @@ aws ecr get-login-password | docker login --username AWS --password-stdin ACCOUN
 
 1. Tag the docker image 
 
-docker tag lifelines-python3.12-v2:latest ACCOUNTID.dkr.ecr.us-east-1.amazonaws.com/lifelines-lambda-sample:latest 
+docker tag lifelines-python3.13-v2:latest ACCOUNTID.dkr.ecr.us-east-1.amazonaws.com/lifelines-lambda-sample:latest 
 
 
 1. Push image to ECR

@@ -23,7 +23,7 @@ Resources:
   WileySearchLambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
-      Runtime: python3.12
+      Runtime: python3.13
       Handler: index.lambda_handler
       Role: !GetAtt WileySearchLambdaRole.Arn
       Timeout: 30

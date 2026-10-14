@@ -76,7 +76,7 @@ Follow this guidance when developing new agents for this toolkit:
 
 ### Lambda Action Groups
 
-Use Python 3.12 as the runtime for all lambda functions. Lambda code should have the standard handler structure:
+Use Python 3.13 as the runtime for all lambda functions. Lambda code should have the standard handler structure:
 
 ```python
 def lambda_handler(event, context):

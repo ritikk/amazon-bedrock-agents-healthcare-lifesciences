@@ -77,7 +77,7 @@ Resources:
       Code:
         S3Bucket: !Ref S3Bucket
         S3Key: pubmed-lambda-function.zip
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 30
       MemorySize: 128
 
@@ -419,7 +419,7 @@ Resources:
               else:
                   cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
 
-      Runtime: python3.12
+      Runtime: python3.13
       Timeout: 900
       Layers: 
         - !FindInMap [RegionMap, !Ref 'AWS::Region', PandasLayer]

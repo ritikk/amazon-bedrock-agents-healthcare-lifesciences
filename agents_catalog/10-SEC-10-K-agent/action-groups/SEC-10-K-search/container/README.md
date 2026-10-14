@@ -46,7 +46,7 @@ for result in results:
 
 ## Requirements
 
-- Python 3.12+
+- Python 3.13+
 - AWS account with access to Amazon Bedrock
 - Proper AWS credentials configured
 

@@ -194,7 +194,7 @@ Resources:
   AgentLambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
-      Runtime: python3.12
+      Runtime: python3.13
       FunctionName: !Sub biomarker-agent-${EnvironmentName}
       Handler: querydatabaselambda.lambda_handler
       Role: !GetAtt AgentLambdaRole.Arn
