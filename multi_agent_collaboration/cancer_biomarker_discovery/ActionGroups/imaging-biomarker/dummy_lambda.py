@@ -50,7 +50,7 @@ def lambda_handler(event, context):
                 else:
                     subject_id = json.loads(param["value"])
         if subject_id:
-            suffix = uuid.uuid1().hex[:6]  # to be used in resource names
+            suffix = uuid.uuid4().hex[:6]  # to be used in resource names
             
             sfn = boto3.client('stepfunctions')
 
