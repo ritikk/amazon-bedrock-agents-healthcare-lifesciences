@@ -41,7 +41,7 @@ def get_schema(question):
 
     print("Prompting Claude")
     client = boto3.client('bedrock-runtime')
-    model_Id = 'anthropic.claude-3-5-sonnet-20241022-v2:0'
+    model_Id = 'global.anthropic.claude-sonnet-5-5'
     
 
     body = json.dumps({
